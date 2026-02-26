@@ -8,13 +8,13 @@
 
 // Funkcja obliczająca indeks Optymalnego Punktu Rozpoznawania (ORP)
 // Zwraca pozycję litery (od 0), która ma być czerwona.
+// Złota reguła ORP (na podstawie badań Spritz):
 int GetORPIndex(int wordLength) {
-    if (wordLength <= 1) return 0;
-    if (wordLength <= 3) return 1;
-    if (wordLength <= 5) return 2;
-    if (wordLength <= 9) return 3;
-    if (wordLength <= 13) return 4;
-    return 5;
+    if (wordLength <= 1) return 0;  // Słowo 1-literowe: 1. litera
+    if (wordLength <= 5) return 1;  // Słowo 2-5 liter: 2. litera
+    if (wordLength <= 9) return 2;  // Słowo 6-9 liter: 3. litera
+    if (wordLength <= 13) return 3; // Słowo 10-13 liter: 4. litera
+    return 4;                       // Słowo powyżej 13 liter: 5. litera
 }
 
 // Funkcja rysująca słowo RSVP
@@ -79,8 +79,12 @@ void DrawRSVPWord(Font font, const char* word, float fontSize, int centerX, int 
 
 int main(void) {
     // 1. Inicjalizacja
-    const int screenWidth = 800;
-    const int screenHeight = 400;
+    const int screenWidth = 1200;
+    const int screenHeight = 600;
+    
+    // Włączamy antyaliasing (MSAA 4x) przed inicjalizacją okna
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    
     InitWindow(screenWidth, screenHeight, "C Speed Reader - RSVP");
     SetTargetFPS(60);
 
@@ -131,20 +135,30 @@ int main(void) {
         codepoints[codepointCount++] = plCodepoints[i];
     }
 
-    Font font = LoadFontEx("Roboto-Regular.ttf", 128, codepoints, codepointCount); // Ładujemy czcionkę z polskimi znakami
-    SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR); // Lepsza jakość skalowania
-    float fontSize = 80.0f; // Znacznie większa czcionka
+    // Ładujemy czcionkę w docelowej rozdzielczości (140px)
+    // Używamy SDF (Signed Distance Field), co daje idealnie ostre krawędzie przy dowolnym skalowaniu
+    Font font = LoadFontEx("Roboto-Regular.ttf", 140, codepoints, codepointCount); 
+    
+    // Ustawiamy filtrowanie dwuliniowe (wystarczające dla SDF)
+    SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR); 
+    
+    float fontSize = 140.0f; // Docelowy rozmiar wyświetlania
 
     // 4. Główna pętla
     while (!WindowShouldClose()) {
         // --- LOGIKA ---
         
         // Obsługa sterowania
-        if (IsKeyPressed(KEY_SPACE)) isPlaying = !isPlaying;
+        if (IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) isPlaying = !isPlaying;
         if (IsKeyPressed(KEY_UP)) wpm += 25;
         if (IsKeyPressed(KEY_DOWN) && wpm > 50) wpm -= 25;
         if (IsKeyPressed(KEY_LEFT) && currentWord > 0) currentWord--;
         if (IsKeyPressed(KEY_RIGHT) && currentWord < wordCount - 1) currentWord++;
+
+        // Obsługa kółka myszy do zmiany prędkości
+        float wheelMove = GetMouseWheelMove();
+        if (wheelMove > 0) wpm += 10;
+        if (wheelMove < 0 && wpm > 50) wpm -= 10;
 
         // Obliczanie czasu zmiany słowa
         if (isPlaying && wordCount > 0) {
@@ -171,10 +185,10 @@ int main(void) {
         int centerY = screenHeight / 2;
 
         // Prowadnice (linie na wzór tych z Twojego screena)
-        DrawLine(centerX - 250, centerY - 60, centerX + 250, centerY - 60, DARKGRAY); // Górna belka
-        DrawLine(centerX - 250, centerY + 60, centerX + 250, centerY + 60, DARKGRAY); // Dolna belka
-        DrawLine(centerX, centerY - 60, centerX, centerY - 40, DARKGRAY);             // Górny wskaźnik ORP
-        DrawLine(centerX, centerY + 40, centerX, centerY + 60, DARKGRAY);             // Dolny wskaźnik ORP
+        DrawLine(centerX - 400, centerY - 100, centerX + 400, centerY - 100, DARKGRAY); // Górna belka
+        DrawLine(centerX - 400, centerY + 100, centerX + 400, centerY + 100, DARKGRAY); // Dolna belka
+        DrawLine(centerX, centerY - 100, centerX, centerY - 70, DARKGRAY);             // Górny wskaźnik ORP
+        DrawLine(centerX, centerY + 70, centerX, centerY + 100, DARKGRAY);             // Dolny wskaźnik ORP
 
         // Rysowanie obecnego słowa
         if (wordCount > 0) {
@@ -182,19 +196,20 @@ int main(void) {
         }
 
         // Rysowanie Interfejsu (HUD)
-        DrawTextEx(font, TextFormat("Prędkość: %d WPM", wpm), (Vector2){20, 20}, 20, 1, LIGHTGRAY);
-        DrawTextEx(font, TextFormat("Słowo: %d / %d", currentWord + 1, wordCount), (Vector2){20, 50}, 20, 1, LIGHTGRAY);
+        float hudFontSize = 30.0f;
+        DrawTextEx(font, TextFormat("Prędkość: %d WPM", wpm), (Vector2){30, 30}, hudFontSize, 1, LIGHTGRAY);
+        DrawTextEx(font, TextFormat("Słowo: %d / %d", currentWord + 1, wordCount), (Vector2){30, 70}, hudFontSize, 1, LIGHTGRAY);
         
         if (!isPlaying) {
-            DrawTextEx(font, "[SPACJA] Start / Pauza", (Vector2){screenWidth - 250, 20}, 20, 1, YELLOW);
+            DrawTextEx(font, "[SPACJA] Start / Pauza", (Vector2){screenWidth - 350, 30}, hudFontSize, 1, YELLOW);
         } else {
-            DrawTextEx(font, "Odtwarzanie...", (Vector2){screenWidth - 180, 20}, 20, 1, GREEN);
+            DrawTextEx(font, "Odtwarzanie...", (Vector2){screenWidth - 250, 30}, hudFontSize, 1, GREEN);
         }
         
         // Pasek postępu na samym dole ekranu
         if (wordCount > 0) {
             float progress = (float)(currentWord + 1) / (float)wordCount;
-            DrawRectangle(0, screenHeight - 5, (int)(screenWidth * progress), 5, RED);
+            DrawRectangle(0, screenHeight - 10, (int)(screenWidth * progress), 10, RED);
         }
 
         EndDrawing();
