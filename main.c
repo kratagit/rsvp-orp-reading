@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#define MAX_WORDS 5000
+#define MAX_WORDS 10000
 
 // Funkcja obliczająca indeks Optymalnego Punktu Rozpoznawania (ORP)
 // Zwraca pozycję litery (od 0), która ma być czerwona.
@@ -79,7 +79,7 @@ void DrawRSVPWord(Font font, const char* word, float fontSize, int centerX, int 
 
 int main(void) {
     // 1. Inicjalizacja
-    const int screenWidth = 1200;
+    const int screenWidth = 1500;
     const int screenHeight = 600;
     
     // Włączamy antyaliasing (MSAA 4x) przed inicjalizacją okna
@@ -135,14 +135,15 @@ int main(void) {
         codepoints[codepointCount++] = plCodepoints[i];
     }
 
-    // Ładujemy czcionkę w docelowej rozdzielczości (140px)
-    // Używamy SDF (Signed Distance Field), co daje idealnie ostre krawędzie przy dowolnym skalowaniu
+    // Ładujemy czcionkę w docelowej rozdzielczości (140px) dla głównego tekstu
     Font font = LoadFontEx("Roboto-Regular.ttf", 140, codepoints, codepointCount); 
-    
-    // Ustawiamy filtrowanie dwuliniowe (wystarczające dla SDF)
     SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR); 
     
-    float fontSize = 140.0f; // Docelowy rozmiar wyświetlania
+    // Ładujemy osobną czcionkę dla małych napisów (HUD), aby uniknąć artefaktów skalowania w dół
+    Font fontHud = LoadFontEx("Roboto-Regular.ttf", 30, codepoints, codepointCount);
+    SetTextureFilter(fontHud.texture, TEXTURE_FILTER_BILINEAR);
+
+    float fontSize = 140.0f; // Docelowy rozmiar wyświetlania głównego tekstu
 
     // 4. Główna pętla
     while (!WindowShouldClose()) {
@@ -197,13 +198,13 @@ int main(void) {
 
         // Rysowanie Interfejsu (HUD)
         float hudFontSize = 30.0f;
-        DrawTextEx(font, TextFormat("Prędkość: %d WPM", wpm), (Vector2){30, 30}, hudFontSize, 1, LIGHTGRAY);
-        DrawTextEx(font, TextFormat("Słowo: %d / %d", currentWord + 1, wordCount), (Vector2){30, 70}, hudFontSize, 1, LIGHTGRAY);
+        DrawTextEx(fontHud, TextFormat("Prędkość: %d WPM", wpm), (Vector2){30, 30}, hudFontSize, 1, LIGHTGRAY);
+        DrawTextEx(fontHud, TextFormat("Słowo: %d / %d", currentWord + 1, wordCount), (Vector2){30, 70}, hudFontSize, 1, LIGHTGRAY);
         
         if (!isPlaying) {
-            DrawTextEx(font, "[SPACJA] Start / Pauza", (Vector2){screenWidth - 350, 30}, hudFontSize, 1, YELLOW);
+            DrawTextEx(fontHud, "[SPACJA / LPM] Start / Pauza", (Vector2){screenWidth - 450, 30}, hudFontSize, 1, YELLOW);
         } else {
-            DrawTextEx(font, "Odtwarzanie...", (Vector2){screenWidth - 250, 30}, hudFontSize, 1, GREEN);
+            DrawTextEx(fontHud, "Odtwarzanie...", (Vector2){screenWidth - 250, 30}, hudFontSize, 1, GREEN);
         }
         
         // Pasek postępu na samym dole ekranu
@@ -217,6 +218,7 @@ int main(void) {
 
     // 5. Sprzątanie
     UnloadFont(font);
+    UnloadFont(fontHud);
     free(sourceText); // Zwalniamy pamięć po tekście
     CloseWindow();
     return 0;
