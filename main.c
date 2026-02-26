@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include "font_data.h" // Wkompilowana czcionka
 
 #define MAX_WORDS 10000
 
@@ -92,8 +93,15 @@ int main(void) {
     char* sourceText = LoadFileText("tekst.txt");
     if (sourceText == NULL) {
         printf("Błąd: Nie można wczytać pliku tekst.txt\n");
-        CloseWindow();
-        return 1;
+        // Fallback jeśli plik nie istnieje, żeby aplikacja się nie wywalała
+        sourceText = strdup("Witaj w aplikacji do szybkiego czytania! "
+                            "Ta metoda nazywa sie RSVP. "
+                            "Zamiast ruszac oczami po calej stronie, koncentrujesz wzrok w jednym punkcie. "
+                            "To drastycznie zmniejsza zmeczenie i pozwala czytac z predkoscia nawet do tysiaca slow na minute. "
+                            "Nacisnij spacje aby zapauzowac. "
+                            "Uzyj strzalek w gore i w dol, aby zmienic predkosc. "
+                            "Uzyj strzalek w lewo i prawo, aby przewijac tekst recznie. "
+                            "Powodzenia w treningu!");
     }
 
     // Rozbijanie tekstu na tablicę słów
@@ -135,12 +143,12 @@ int main(void) {
         codepoints[codepointCount++] = plCodepoints[i];
     }
 
-    // Ładujemy czcionkę w docelowej rozdzielczości (140px) dla głównego tekstu
-    Font font = LoadFontEx("Roboto-Regular.ttf", 140, codepoints, codepointCount); 
+    // Ładujemy czcionkę z pamięci (wkompilowaną w plik wykonywalny)
+    Font font = LoadFontFromMemory(".ttf", Roboto_Regular_ttf, Roboto_Regular_ttf_len, 140, codepoints, codepointCount); 
     SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR); 
     
-    // Ładujemy osobną czcionkę dla małych napisów (HUD), aby uniknąć artefaktów skalowania w dół
-    Font fontHud = LoadFontEx("Roboto-Regular.ttf", 30, codepoints, codepointCount);
+    // Ładujemy osobną czcionkę dla małych napisów (HUD) z pamięci
+    Font fontHud = LoadFontFromMemory(".ttf", Roboto_Regular_ttf, Roboto_Regular_ttf_len, 30, codepoints, codepointCount);
     SetTextureFilter(fontHud.texture, TEXTURE_FILTER_BILINEAR);
 
     float fontSize = 140.0f; // Docelowy rozmiar wyświetlania głównego tekstu

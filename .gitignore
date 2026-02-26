@@ -1,5 +1,26 @@
-build*/
 tekst.txt
+
+# Foldery budowania i zależności
+_deps/
+build/
+build-windows/
+CMakeFiles/
+
+# Pliki konfiguracyjne CMake
+CMakeCache.txt
+cmake_install.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+Makefile
+
+# Pliki binarne (wykonywalne)
+main
+*.exe
+*.out
+
+# Opcjonalnie: pliki tymczasowe edytorów
+.vscode/
+.idea/
 
 # Prerequisites
 *.d

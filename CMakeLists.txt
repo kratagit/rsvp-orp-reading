@@ -14,11 +14,8 @@ FetchContent_MakeAvailable(raylib)
 add_executable(main main.c)
 target_link_libraries(main PRIVATE raylib)
 
-# Kopiowanie czcionki i pliku tekstowego do folderu budowania po każdej kompilacji
+# Kopiowanie pliku tekstowego do folderu budowania po każdej kompilacji
 add_custom_command(TARGET main POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/Roboto-Regular.ttf"
-        "${CMAKE_CURRENT_BINARY_DIR}/Roboto-Regular.ttf"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/tekst.txt"
         "${CMAKE_CURRENT_BINARY_DIR}/tekst.txt"
