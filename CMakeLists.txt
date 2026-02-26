@@ -13,3 +13,7 @@ FetchContent_MakeAvailable(raylib)
 
 add_executable(main main.c)
 target_link_libraries(main PRIVATE raylib)
+
+# Kopiowanie czcionki i pliku tekstowego do folderu budowania
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/Roboto-Regular.ttf DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tekst.txt DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

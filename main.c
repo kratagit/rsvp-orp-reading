@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 
 #define MAX_WORDS 5000
@@ -18,21 +19,43 @@ int GetORPIndex(int wordLength) {
 
 // Funkcja rysująca słowo RSVP
 void DrawRSVPWord(Font font, const char* word, float fontSize, int centerX, int centerY) {
-    int len = strlen(word);
-    if (len == 0) return;
-
-    int orpIdx = GetORPIndex(len);
-
-    // Dzielenie słowa na 3 części
-    char left[64] = {0};
-    char center[2] = {0};
-    char right[64] = {0};
-
-    strncpy(left, word, orpIdx);       // Lewa część (przed czerwoną literą)
-    center[0] = word[orpIdx];          // Czerwona litera
-    if (len > orpIdx + 1) {
-        strcpy(right, word + orpIdx + 1); // Prawa część (za czerwoną literą)
+    // Używamy GetCodepoint do poprawnego liczenia znaków Unicode (UTF-8)
+    int codepointCount = 0;
+    int* codepoints = LoadCodepoints(word, &codepointCount);
+    
+    if (codepointCount == 0) {
+        UnloadCodepoints(codepoints);
+        return;
     }
+
+    int orpIdx = GetORPIndex(codepointCount);
+
+    // Dzielenie słowa na 3 części (w znakach Unicode)
+    // Ponieważ znaki UTF-8 mogą zajmować więcej niż 1 bajt, musimy zrekonstruować stringi
+    char left[256] = {0};
+    char center[8] = {0};
+    char right[256] = {0};
+    
+    int byteOffset = 0;
+    int currentCodepoint = 0;
+    
+    while (currentCodepoint < codepointCount) {
+        int codepointSize = 0;
+        GetCodepoint(&word[byteOffset], &codepointSize);
+        
+        if (currentCodepoint < orpIdx) {
+            strncat(left, &word[byteOffset], codepointSize);
+        } else if (currentCodepoint == orpIdx) {
+            strncat(center, &word[byteOffset], codepointSize);
+        } else {
+            strncat(right, &word[byteOffset], codepointSize);
+        }
+        
+        byteOffset += codepointSize;
+        currentCodepoint++;
+    }
+    
+    UnloadCodepoints(codepoints);
 
     float spacing = 2.0f; // Odstęp między literami
 
@@ -61,15 +84,13 @@ int main(void) {
     InitWindow(screenWidth, screenHeight, "C Speed Reader - RSVP");
     SetTargetFPS(60);
 
-    // 2. Przygotowanie tekstu (w przyszłości tutaj wczytasz plik za pomocą np. LoadFileText)
-    char sourceText[] = "Witaj w aplikacji do szybkiego czytania! "
-                        "Ta metoda nazywa sie RSVP. "
-                        "Zamiast ruszac oczami po calej stronie, koncentrujesz wzrok w jednym punkcie. "
-                        "To drastycznie zmniejsza zmeczenie i pozwala czytac z predkoscia nawet do tysiaca slow na minute. "
-                        "Nacisnij spacje aby zapauzowac. "
-                        "Uzyj strzalek w gore i w dol, aby zmienic predkosc. "
-                        "Uzyj strzalek w lewo i prawo, aby przewijac tekst recznie. "
-                        "Powodzenia w treningu!";
+    // 2. Przygotowanie tekstu
+    char* sourceText = LoadFileText("tekst.txt");
+    if (sourceText == NULL) {
+        printf("Błąd: Nie można wczytać pliku tekst.txt\n");
+        CloseWindow();
+        return 1;
+    }
 
     // Rozbijanie tekstu na tablicę słów
     char* words[MAX_WORDS];
@@ -87,8 +108,32 @@ int main(void) {
     bool isPlaying = false;            // Czy tekst leci (pauza na start)
     float timer = 0.0f;
 
-    Font font = GetFontDefault();      // Pobieramy domyślną czcionkę systemową
-    float fontSize = 40.0f;
+    // Tablica kodów znaków dla języka polskiego (i podstawowych ASCII)
+    int codepoints[512];
+    for (int i = 0; i < 256; i++) codepoints[i] = i; // Podstawowe ASCII
+    
+    // Polskie znaki (Unicode)
+    int plCodepoints[] = {
+        0x0104, 0x0105, // Ą, ą
+        0x0106, 0x0107, // Ć, ć
+        0x0118, 0x0119, // Ę, ę
+        0x0141, 0x0142, // Ł, ł
+        0x0143, 0x0144, // Ń, ń
+        0x00D3, 0x00F3, // Ó, ó
+        0x015A, 0x015B, // Ś, ś
+        0x0179, 0x017A, // Ź, ź
+        0x017B, 0x017C, // Ż, ż
+        0x2013, 0x2014, 0x201E, 0x201D, 0x201C // Myślniki i cudzysłowy
+    };
+    
+    int codepointCount = 256;
+    for (int i = 0; i < 23; i++) {
+        codepoints[codepointCount++] = plCodepoints[i];
+    }
+
+    Font font = LoadFontEx("Roboto-Regular.ttf", 128, codepoints, codepointCount); // Ładujemy czcionkę z polskimi znakami
+    SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR); // Lepsza jakość skalowania
+    float fontSize = 80.0f; // Znacznie większa czcionka
 
     // 4. Główna pętla
     while (!WindowShouldClose()) {
@@ -126,10 +171,10 @@ int main(void) {
         int centerY = screenHeight / 2;
 
         // Prowadnice (linie na wzór tych z Twojego screena)
-        DrawLine(centerX - 150, centerY - 40, centerX + 150, centerY - 40, DARKGRAY); // Górna belka
-        DrawLine(centerX - 150, centerY + 40, centerX + 150, centerY + 40, DARKGRAY); // Dolna belka
-        DrawLine(centerX, centerY - 40, centerX, centerY - 25, DARKGRAY);             // Górny wskaźnik ORP
-        DrawLine(centerX, centerY + 25, centerX, centerY + 40, DARKGRAY);             // Dolny wskaźnik ORP
+        DrawLine(centerX - 250, centerY - 60, centerX + 250, centerY - 60, DARKGRAY); // Górna belka
+        DrawLine(centerX - 250, centerY + 60, centerX + 250, centerY + 60, DARKGRAY); // Dolna belka
+        DrawLine(centerX, centerY - 60, centerX, centerY - 40, DARKGRAY);             // Górny wskaźnik ORP
+        DrawLine(centerX, centerY + 40, centerX, centerY + 60, DARKGRAY);             // Dolny wskaźnik ORP
 
         // Rysowanie obecnego słowa
         if (wordCount > 0) {
@@ -137,13 +182,13 @@ int main(void) {
         }
 
         // Rysowanie Interfejsu (HUD)
-        DrawText(TextFormat("Prędkość: %d WPM", wpm), 20, 20, 20, LIGHTGRAY);
-        DrawText(TextFormat("Słowo: %d / %d", currentWord + 1, wordCount), 20, 50, 20, LIGHTGRAY);
+        DrawTextEx(font, TextFormat("Prędkość: %d WPM", wpm), (Vector2){20, 20}, 20, 1, LIGHTGRAY);
+        DrawTextEx(font, TextFormat("Słowo: %d / %d", currentWord + 1, wordCount), (Vector2){20, 50}, 20, 1, LIGHTGRAY);
         
         if (!isPlaying) {
-            DrawText("[SPACJA] Start / Pauza", screenWidth - 250, 20, 20, YELLOW);
+            DrawTextEx(font, "[SPACJA] Start / Pauza", (Vector2){screenWidth - 250, 20}, 20, 1, YELLOW);
         } else {
-            DrawText("Odtwarzanie...", screenWidth - 180, 20, 20, GREEN);
+            DrawTextEx(font, "Odtwarzanie...", (Vector2){screenWidth - 180, 20}, 20, 1, GREEN);
         }
         
         // Pasek postępu na samym dole ekranu
@@ -156,6 +201,8 @@ int main(void) {
     }
 
     // 5. Sprzątanie
+    UnloadFont(font);
+    free(sourceText); // Zwalniamy pamięć po tekście
     CloseWindow();
     return 0;
 }
