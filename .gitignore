@@ -2,7 +2,7 @@ tekst.txt
 
 # Foldery budowania i zależności
 _deps/
-build/
+build*/
 build-windows/
 CMakeFiles/
 
