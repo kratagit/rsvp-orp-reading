@@ -13,6 +13,12 @@ extern int FastStrLen(const char* str);
 
 // ORP index calculation in assembly
 extern int GetORPIndex_Asm(int wordLength);
+
+// Count UTF-8 Codepoints in assembly
+extern int CountUtf8CodepointsASM(const char* str);
+
+// Split word into Left, Center, Right in assembly
+extern void SplitWordASM(const char* word, int orpIndex, char* left, char* center, char* right);
 // -----------------------------------
 
 // Calculates the Optimal Recognition Point (ORP) index
@@ -23,42 +29,21 @@ int GetORPIndex(int wordLength) {
 
 // Draws the RSVP word
 void DrawRSVPWord(Font font, const char* word, float fontSize, int centerX, int centerY) {
-    // Use GetCodepoint for correct Unicode (UTF-8) counting
-    int codepointCount = 0;
-    int* codepoints = LoadCodepoints(word, &codepointCount);
+    // 1. Calculate codepoint count (ASM)
+    int codepointCount = CountUtf8CodepointsASM(word);
     
-    if (codepointCount == 0) {
-        UnloadCodepoints(codepoints);
-        return;
-    }
+    if (codepointCount == 0) return;
 
+    // 2. Calculate ORP index (ASM)
     int orpIdx = GetORPIndex(codepointCount);
 
-    // Split word into 3 parts (unicode aware)
-    char left[256] = {0};
-    char center[8] = {0};
-    char right[256] = {0};
+    // 3. Prepare buffers
+    char left[256];
+    char center[8];  // Max 4 bytes for UTF-8 char + null
+    char right[256];
     
-    int byteOffset = 0;
-    int currentCodepoint = 0;
-    
-    while (currentCodepoint < codepointCount) {
-        int codepointSize = 0;
-        GetCodepoint(&word[byteOffset], &codepointSize);
-        
-        if (currentCodepoint < orpIdx) {
-            strncat(left, &word[byteOffset], codepointSize);
-        } else if (currentCodepoint == orpIdx) {
-            strncat(center, &word[byteOffset], codepointSize);
-        } else {
-            strncat(right, &word[byteOffset], codepointSize);
-        }
-        
-        byteOffset += codepointSize;
-        currentCodepoint++;
-    }
-    
-    UnloadCodepoints(codepoints);
+    // 4. Split word (ASM) - SUPER FAST
+    SplitWordASM(word, orpIdx, left, center, right);
 
     float spacing = 2.0f;
 
