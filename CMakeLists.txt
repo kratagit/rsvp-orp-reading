@@ -13,8 +13,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(raylib)
 
-# Add rsvp_logic.s to the executable
-add_executable(main main.c rsvp_logic.s)
+# Add rsvp_logic.asm to the executable
+add_executable(main main.c rsvp_logic.asm)
 target_link_libraries(main PRIVATE raylib)
 
 # Copy text file to build directory after build

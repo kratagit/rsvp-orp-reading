@@ -1,0 +1,12 @@
+# Rozszerz wykrywalność dla assemblera
+*.asm linguist-language=Assembly
+*.s linguist-language=Assembly
+
+# Jeśli używasz _deps/ jako zależność, zignoruj to w statystykach:
+_deps/** linguist-vendored
+build/** linguist-vendored
+raylib-src/** linguist-vendored
+
+# Ważne: zignoruj wielkie pliki wygenerowane
+# font_data.h to pewnie wielka tablica bajtów, więc zafałszowuje statystyki C
+font_data.h linguist-generated
